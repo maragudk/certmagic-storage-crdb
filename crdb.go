@@ -1,3 +1,4 @@
+// Package certmagic_storage_crdb provides a certmagic.Storer implementation for CockroachDB.
 package certmagic_storage_crdb
 
 import (
