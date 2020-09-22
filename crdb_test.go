@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/caddyserver/certmagic"
 	"github.com/maragudk/certmagic-storage-crdb/internal/storagetest"
 	"github.com/stretchr/testify/require"
 )
@@ -65,12 +66,14 @@ func TestCRDBStorage_Unlock(t *testing.T) {
 }
 
 func TestCRDBStorage_Load(t *testing.T) {
-	t.Run("returns nil if no such key", func(t *testing.T) {
+	t.Run("returns ErrNotExist if no such key", func(t *testing.T) {
 		s, cleanup := storagetest.CreateStorage()
 		defer cleanup()
 
 		value, err := s.Load("test")
-		require.NoError(t, err)
+		require.Error(t, err)
+		_, ok := err.(certmagic.ErrNotExist)
+		require.True(t, ok)
 		require.Nil(t, value)
 	})
 
@@ -113,12 +116,14 @@ func TestCRDBStorage_Store(t *testing.T) {
 }
 
 func TestCRDBStorage_Delete(t *testing.T) {
-	t.Run("does not error on no such key", func(t *testing.T) {
+	t.Run("errors on no such key", func(t *testing.T) {
 		s, cleanup := storagetest.CreateStorage()
 		defer cleanup()
 
 		err := s.Delete("test")
-		require.NoError(t, err)
+		require.Error(t, err)
+		_, ok := err.(certmagic.ErrNotExist)
+		require.True(t, ok)
 	})
 
 	t.Run("deletes the value at key", func(t *testing.T) {
@@ -132,7 +137,7 @@ func TestCRDBStorage_Delete(t *testing.T) {
 		require.NoError(t, err)
 
 		value, err := s.Load("test")
-		require.NoError(t, err)
+		require.Error(t, err)
 		require.Nil(t, value)
 	})
 }
