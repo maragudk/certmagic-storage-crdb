@@ -164,7 +164,31 @@ func TestCRDBStorage_Exists(t *testing.T) {
 }
 
 func TestCRDBStorage_List(t *testing.T) {
+	t.Run("returns a list of keys with the given prefix", func(t *testing.T) {
+		s, cleanup := storagetest.CreateStorage()
+		defer cleanup()
 
+		err := s.Store("test", []byte("hat"))
+		require.NoError(t, err)
+
+		err = s.Store("test2", []byte("hat"))
+		require.NoError(t, err)
+
+		err = s.Store("nottest", []byte("hat"))
+		require.NoError(t, err)
+
+		keys, err := s.List("tes", false)
+		require.NoError(t, err)
+		require.Equal(t, []string{"test", "test2"}, keys)
+	})
+
+	t.Run("errors on recursive flag", func(t *testing.T) {
+		s, cleanup := storagetest.CreateStorage()
+		defer cleanup()
+
+		_, err := s.List("tes", true)
+		require.Error(t, err)
+	})
 }
 
 func TestCRDBStorage_Stat(t *testing.T) {

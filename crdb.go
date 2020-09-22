@@ -156,17 +156,44 @@ func (s *CRDBStorage) Exists(key string) bool {
 	return exists
 }
 
+// List does not support the recursive flag, but it is provided in the signature to satisfy certmagic.Storage.
 func (s *CRDBStorage) List(prefix string, recursive bool) ([]string, error) {
-	panic("implement me")
+	if recursive {
+		return nil, fmt.Errorf("recursive is not supported in this storage implementation")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
+	defer cancel()
+	rows, err := s.DB.QueryContext(ctx, `select "key" from certmagic_values where "key" like $1 order by "key"`, prefix+"%")
+	if err != nil {
+		return nil, err
+	}
+
+	var keys []string
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			break
+		}
+		keys = append(keys, key)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return keys, nil
 }
 
+// Stat only supports keys that are terminal.
 func (s *CRDBStorage) Stat(key string) (certmagic.KeyInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
 	defer cancel()
 	row := s.DB.QueryRowContext(ctx, `select length(value), updated from certmagic_values where "key" = $1`, key)
 	info := certmagic.KeyInfo{
 		Key:        key,
-		IsTerminal: true, // TODO
+		IsTerminal: true,
 	}
 	if err := row.Scan(&info.Size, &info.Modified); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
