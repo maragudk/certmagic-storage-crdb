@@ -121,8 +121,7 @@ func (s *CRDBStorage) Load(key string) ([]byte, error) {
 	row := s.DB.QueryRowContext(ctx, `select "value" from certmagic_values where "key" = $1`, key)
 	if err := row.Scan(&v); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			// TODO is this correct, or should it be an error?
-			return nil, nil
+			return nil, certmagic.ErrNotExist(err)
 		}
 		return nil, err
 	}
@@ -132,8 +131,18 @@ func (s *CRDBStorage) Load(key string) ([]byte, error) {
 func (s *CRDBStorage) Delete(key string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
 	defer cancel()
-	_, err := s.DB.ExecContext(ctx, `delete from certmagic_values where "key" = $1`, key)
-	return err
+	result, err := s.DB.ExecContext(ctx, `delete from certmagic_values where "key" = $1`, key)
+	if err != nil {
+		return err
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return certmagic.ErrNotExist(fmt.Errorf("no value at key %v", key))
+	}
+	return nil
 }
 
 func (s *CRDBStorage) Exists(key string) bool {
@@ -152,8 +161,6 @@ func (s *CRDBStorage) List(prefix string, recursive bool) ([]string, error) {
 }
 
 func (s *CRDBStorage) Stat(key string) (certmagic.KeyInfo, error) {
-	// TODO if the key doesn't exist, is that an error?
-
 	ctx, cancel := context.WithTimeout(context.Background(), defaultQueryTimeout)
 	defer cancel()
 	row := s.DB.QueryRowContext(ctx, `select length(value), updated from certmagic_values where "key" = $1`, key)
@@ -162,7 +169,10 @@ func (s *CRDBStorage) Stat(key string) (certmagic.KeyInfo, error) {
 		IsTerminal: true, // TODO
 	}
 	if err := row.Scan(&info.Size, &info.Modified); err != nil {
-		return info, err
+		if errors.Is(err, sql.ErrNoRows) {
+			return certmagic.KeyInfo{}, certmagic.ErrNotExist(err)
+		}
+		return certmagic.KeyInfo{}, err
 	}
 	return info, nil
 }
