@@ -3,7 +3,7 @@
 # Check https://circleci.com/docs/2.0/language-go/ for more details
 version: 2
 jobs:
-  integration-test:
+  test:
     docker:
       - image: circleci/golang:1.15
       - image: cockroachdb/cockroach:v20.1.5
@@ -41,6 +41,6 @@ jobs:
           destination: cover.html
 workflows:
   version: 2
-  integration-test-workflow:
+  test-workflow:
     jobs:
-      - integration-test
+      - test
