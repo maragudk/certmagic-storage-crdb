@@ -206,4 +206,14 @@ func TestCRDBStorage_Stat(t *testing.T) {
 		require.Equal(t, int64(3), info.Size)
 		require.True(t, info.IsTerminal)
 	})
+
+	t.Run("errors on no such key", func(t *testing.T) {
+		s, cleanup := storagetest.CreateStorage()
+		defer cleanup()
+
+		_, err := s.Stat("test")
+		require.Error(t, err)
+		_, ok := err.(certmagic.ErrNotExist)
+		require.True(t, ok)
+	})
 }
