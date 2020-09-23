@@ -12,11 +12,15 @@ See [tables.sql](tables.sql) for the expected tables in the database.
 package main
 
 import (
+	"context"
+	"log"
+
+	"github.com/caddyserver/certmagic"
 	crdb "github.com/maragudk/certmagic-storage-crdb"
 )
 
 func main() {
-	storage := crdb.New(crdb.Options{
+	s := crdb.New(crdb.Options{
 		User:     "certmagic",
 		Host:     "localhost",
 		Port:     26257,
@@ -25,7 +29,12 @@ func main() {
 		Key:      "path/to/key",
 		RootCert: "path/to/root/cert",
 	})
-	// use storage in certmagic or caddy
+	certmagic.Default.Storage = s
+	if err := s.Connect(context.Background()); err != nil {
+		log.Fatalln("Error connecting to storage:", err)
+	}
+
+	err := certmagic.HTTPS([]string{"example.com"}, nil)
 }
 ```
 
